@@ -1,5 +1,6 @@
 import os
 import torch
+import torch.nn.functional as f
 import cv2
 import uuid
 from PIL import Image
@@ -9,6 +10,12 @@ from Siamese_MobileNetV2.Siamese_MobileNetV2 import Siamese_MobileNetV2
 class FaceRecognitionAPI():
     def __init__(self, face_dir, weight_dir, haar_dir):
         assert os.path.isdir(face_dir), "{} is not a folder.".format(face_dir)
+
+        self.face_dir = face_dir
+        self.weight_dir = weight_dir
+        self.haar_dir = haar_dir
+
+        #Initialize faces
         self.faces = os.listdir(face_dir)
 
         #Initialize Haar
@@ -25,25 +32,22 @@ class FaceRecognitionAPI():
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         ])
 
-    def registerFace(self, current_id=None):
-        face_vector = self.runRecognition()
+    def processAndRegister(self, images, current_id=None):
+        vectors = []
+        for image in images:
+            valid, _, input_image = self.preprocessFrame(image)
+
+            if valid:
+                vectors.append(self.computeVector(input_image))
+
+        face_vector = torch.cat(vectors, axis=0)
+        self.registerFace(face_vector, current_id)
+
+    def registerFace(self, face_vector, current_id=None):
         if not current_id:
             current_id = str(uuid.uuid4()) #Generate new id
 
         self.writeFace(face_vector, current_id) #Add new entry
-
-    def loadFace(self, face_id):
-        assert face_id in self.faces
-        return torch.load(f'{face_id}.pt')
-
-    def writeFace(self, face_vector, face_id):
-        torch.save(face_vector, f'{face_id}.pth')
-        self.updateFaces()
-
-    def deleteFace(self, face_id):
-        assert face_id in self.faces
-        os.remove(f'{face_id}.pt')
-        self.updateFaces()
 
     def updateFaces(self):
         self.faces = os.listdir(self.face_dir)
@@ -53,8 +57,12 @@ class FaceRecognitionAPI():
         face_vector = self.loadFace(face_id)
         return self.withinThreshold(output, face_vector)
 
-    def withinThreshold(self, face_vector1, face_vector2, threshold=1):
-        return True if torch.mean(f.pairwise_distance(face_vector1, face_vector2)) < threshold else False
+    def computeVector(self, image):
+        return self.model(image)
+
+    def withinThreshold(self, face_vector1, face_vector2, threshold=0.55):
+        score = torch.mean(f.pairwise_distance(face_vector1, face_vector2))
+        return True if score < threshold else False
 
     def preprocessFrame(self, frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -74,6 +82,9 @@ class FaceRecognitionAPI():
 
         return False, frame, None
 
+    '''
+        I/O Utilities
+    '''
     def loadModelWeights(self, weight_fn):
         assert os.path.isfile(weight_fn), "{} is not a file.".format(weight_fn)
         state = torch.load(weight_fn)
@@ -81,4 +92,20 @@ class FaceRecognitionAPI():
         it = state['iterations']
         self.model.load_state_dict(weight)
         print("Checkpoint is loaded at {} | Iterations: {}".format(weight_fn, it))
+
+    def loadFace(self, face_id):
+        face_id = f'{face_id}.pth'
+        assert face_id in self.faces
+        return torch.load(os.path.join(self.face_dir, face_id))
+
+    def writeFace(self, face_vector, face_id):
+        face_id = f'{face_id}.pth'
+        torch.save(face_vector, os.path.join(self.face_dir, face_id))
+        self.updateFaces()
+
+    def deleteFace(self, face_id):
+        face_id = f'{face_id}.pth'
+        assert face_id in self.faces
+        os.remove(os.path.join(self.face_dir, face_id))
+        self.updateFaces()
 

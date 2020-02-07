@@ -10,7 +10,6 @@ from FaceRecognitionAPI import FaceRecognitionAPI
 from torchvision import transforms
 from PIL import Image as PImage
 import torch
-import torch.nn.functional as f
 import time
 import cv2
 import os
@@ -21,8 +20,9 @@ class CamApp(App):
     def build(self):
         #Directories
         self.face_dir = './faces'
-        self.weight_dir = './Siamese_MobileNetV2/weights/siamese_mobilenet_v2_pretrained_500.pkl'
+        self.weight_dir = './Siamese_MobileNetV2/weights/siamese_mobilenet_v2_500.pkl'
         self.haar_dir = './Siamese_MobileNetV2/haarcascade_frontalface_default.xml'
+        self.face_id = 'a286fab0-99fa-49c3-befb-c4a5ab20722c'
 
         self.p = None
         self.img1 = Image()
@@ -30,8 +30,6 @@ class CamApp(App):
         layout.add_widget(self.img1)
         self.queue = Queue()
         self.initializeFaceDetection()
-
-        self.face_vector = self.facerecognition.loadFace('')
 
         Clock.schedule_interval(self.update, 1.0/33.0)
         return layout
@@ -42,6 +40,7 @@ class CamApp(App):
 
     def update(self, dt):
         _, frame = self.capture.read()
+        frame = self.mirrorizeFrame(frame)
         frame = self.detectFace(frame)
         buf1 = cv2.flip(frame, 0)
         buf = buf1.tostring()
@@ -68,21 +67,17 @@ class CamApp(App):
                     print(retval)
                     self.p = None
             else:
-                self.p = Process(target=self.identifyFace, args=(self.queue, image, self.face_vector,))
+                self.p = Process(target=self.identifyFace, args=(self.queue, image, self.face_id,))
                 self.p.start()
 
         return processed_frame
 
     def identifyFace(self, queue, image, face_id):
-        '''
-        output = self.model(image).detach().numpy()
-        queue.put(output)
-        res = self.isSame(queue, label)
-        queue.put(res)
-        '''
         res = self.facerecognition.runRecognition(image, face_id)
         queue.put(res)
 
+    def mirrorizeFrame(self, frame):
+        return cv2.flip(frame, 1)
 
 if __name__ == '__main__':
     CamApp().run()

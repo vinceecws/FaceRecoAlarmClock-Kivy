@@ -1,68 +1,39 @@
-#Taken directly from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_video/py_lucas_kanade/py_lucas_kanade.html
+#Taken originally from https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_video/py_lucas_kanade/py_lucas_kanade.html 
+#and modified for testing
 
 import numpy as np
 import cv2
 
+def horizontalSpeedLimit(flow, limit=6.0):
+    return np.max(flow[:,:,0]) > limit
 
-def getPointsToTrack(classifier, frame):
-    x, y, w, h = classifier.detectMultiScale(frame, 1.1, 4)[0]
-
-    return points
-
+def verticalSpeedLimit(flow, limit=6.0):
+    return np.max(flow[:,:,1]) > limit
 
 cap = cv2.VideoCapture(0)
-face_cascade = cv2.CascadeClassifier('./Siamese_MobileNetV2/haarcascade_frontalface_default.xml')
 
-# params for ShiTomasi corner detection
-feature_params = dict( maxCorners = 100,
-                       qualityLevel = 0.3,
-                       minDistance = 7,
-                       blockSize = 7 )
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 320);
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 240);
 
-# Parameters for lucas kanade optical flow
-lk_params = dict( winSize  = (15,15),
-                  maxLevel = 2,
-                  criteria = (cv2.TERM_CRITERIA_EPS | cv2.TERM_CRITERIA_COUNT, 10, 0.03))
+ret, frame1 = cap.read()
+frame1 = cv2.flip(frame1, 1)
+prvs = cv2.cvtColor(frame1,cv2.COLOR_BGR2GRAY)
 
-# Create some random colors
-color = np.random.randint(0,255,(100,3))
+while(1):
+    ret, frame2 = cap.read()
+    frame2 = cv2.flip(frame2, 1)
+    next = cv2.cvtColor(frame2,cv2.COLOR_BGR2GRAY)
 
-# Take first frame and find corners in it
-ret, old_frame = cap.read()
-old_gray = cv2.cvtColor(old_frame, cv2.COLOR_BGR2GRAY)
-p0 = getPointsToTrack(face_cascade, old_gray)
-#p0 = cv2.goodFeaturesToTrack(old_gray, mask = None, **feature_params) #Use haar cascades face detection for points instead
+    flow = cv2.calcOpticalFlowFarneback(prvs,next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    if horizontalSpeedLimit(flow) or verticalSpeedLimit(flow):
+        print('Too fast')
 
-# Create a mask image for drawing purposes
-mask = np.zeros_like(old_frame)
-
-while(1): #Recompute good features using haar cascades every 5 frames or so
-    ret,frame = cap.read()
-    frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    # calculate optical flow
-    p1, st, err = cv2.calcOpticalFlowPyrLK(old_gray, frame_gray, p0, None, **lk_params)
-
-    # Select good points
-    good_new = p1[st==1]
-    good_old = p0[st==1]
-
-    # draw the tracks
-    for i,(new,old) in enumerate(zip(good_new,good_old)):
-        a,b = new.ravel()
-        c,d = old.ravel()
-        mask = cv2.line(mask, (a,b),(c,d), color[i].tolist(), 2)
-        frame = cv2.circle(frame,(a,b),5,color[i].tolist(),-1)
-    img = cv2.add(frame,mask)
-
-    cv2.imshow('frame',img)
+    cv2.imshow('frame2',frame2)
     k = cv2.waitKey(30) & 0xff
     if k == 27:
         break
+    prvs = next
 
-    # Now update the previous frame and previous points
-    old_gray = frame_gray.copy()
-    p0 = good_new.reshape(-1,1,2)
-
-cv2.destroyAllWindows()
 cap.release()
+cv2.destroyAllWindows()
+

@@ -1,0 +1,6 @@
+faces/
+Siamese_MobileNetV2/Faces/
+Siamese_MobileNetV2/Faces_cropped/
+Siamese_MobileNetV2/lfw/
+Siamese_MobileNetV2/runs/
+Siamese_MobileNetV2/weights/
