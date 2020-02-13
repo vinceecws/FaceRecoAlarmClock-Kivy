@@ -5,7 +5,7 @@ import cv2
 import uuid
 from PIL import Image
 from torchvision import transforms
-from Siamese_MobileNetV2.Siamese_MobileNetV2 import Siamese_MobileNetV2
+from Siamese_MobileNetV2.src.models.Siamese_MobileNetV2 import Siamese_MobileNetV2_Triplet, TripletLoss
 
 class FaceRecognitionAPI():
     def __init__(self, face_dir, weight_dir, haar_dir):
@@ -24,7 +24,7 @@ class FaceRecognitionAPI():
         #Initialize model
         self.input_width = 224
         self.input_height = 224
-        self.model = Siamese_MobileNetV2()
+        self.model = Siamese_MobileNetV2_Triplet()
         self.model.eval()
         self.loadModelWeights(weight_dir)
         self.preprocess = transforms.Compose([
@@ -60,8 +60,9 @@ class FaceRecognitionAPI():
     def computeVector(self, image):
         return self.model(image)
 
-    def withinThreshold(self, face_vector1, face_vector2, threshold=0.55):
-        score = torch.mean(f.pairwise_distance(face_vector1, face_vector2))
+    def withinThreshold(self, face_vector1, face_vector2, threshold=0.1):
+        score = torch.mean(TripletLoss.dist(face_vector1, face_vector2))
+        print(score)
         return True if score < threshold else False
 
     def preprocessFrame(self, frame):

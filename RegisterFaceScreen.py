@@ -18,8 +18,8 @@ class CamApp(App):
         Window.bind(on_request_close=self.on_request_close)
         #Directories
         self.face_dir = './faces'
-        self.weight_dir = './Siamese_MobileNetV2/weights/siamese_mobilenet_v2_pretrained_500.pkl'
-        self.haar_dir = './Siamese_MobileNetV2/haarcascade_frontalface_default.xml'
+        self.weight_dir = './Siamese_MobileNetV2/weights/siamese_mobilenet_v2_pretrained_triplet_negative_hard5706.pkl'
+        self.haar_dir = './Siamese_MobileNetV2/src/utils/haarcascade_frontalface_default.xml'
 
         self.prev = None
         self.screencaps = []

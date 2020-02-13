@@ -5,7 +5,6 @@ from kivy.uix.image import Image
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from multiprocessing import Process, Queue
-from Siamese_MobileNetV2.Siamese_MobileNetV2 import Siamese_MobileNetV2
 from FaceRecognitionAPI import FaceRecognitionAPI
 from torchvision import transforms
 from PIL import Image as PImage
@@ -20,9 +19,9 @@ class CamApp(App):
     def build(self):
         #Directories
         self.face_dir = './faces'
-        self.weight_dir = './Siamese_MobileNetV2/weights/siamese_mobilenet_v2_500.pkl'
-        self.haar_dir = './Siamese_MobileNetV2/haarcascade_frontalface_default.xml'
-        self.face_id = 'a286fab0-99fa-49c3-befb-c4a5ab20722c'
+        self.weight_dir = './Siamese_MobileNetV2/weights/siamese_mobilenet_v2_pretrained_triplet_negative_hard5706.pkl'
+        self.haar_dir = './Siamese_MobileNetV2/src/utils/haarcascade_frontalface_default.xml'
+        self.face_id = 'a13642cf-8f08-4bee-93d3-111d1d6462c1'
 
         self.p = None
         self.img1 = Image()
@@ -53,8 +52,6 @@ class CamApp(App):
         self.capture = cv2.VideoCapture(0)
         self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 320);
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 240);
-        self.model = Siamese_MobileNetV2()
-        self.model.eval()
 
     def detectFace(self, frame):
         detected, processed_frame, image = self.facerecognition.preprocessFrame(frame)

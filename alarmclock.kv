@@ -1,0 +1,186 @@
+<HomeWindow>:
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 5
+        TimeBar:
+        BoxLayout:
+            canvas:
+                Color:
+                    rgba: 0.17, 0.18, 0.18, 1.0
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            size_hint: 1, 0.1
+            AlarmListLabel:
+            AddAlarmButton:
+        AlarmList:
+
+<RegisterWindow>:
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 5
+        TimeBar:
+
+<AlarmWindow>:
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 5
+        TimeBar:
+
+<PostAlarmWindow>:
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 5
+        TimeBar:
+
+<EditAlarmWindow>:
+    hour: self.hour
+    minute: self.minute
+    notation: self.notation
+    label: self.label
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 5
+        TimeBar:
+        BoxLayout:
+            size_hint: 1, 0.1
+            canvas:
+                Color:
+                    rgba: 0.17, 0.18, 0.18, 1.0
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            CancelEditAlarm:
+                text: 'Cancel'
+                opacity: self.opacity
+            Label:
+                text: 'Edit Alarm'
+                font_size: 28
+            SaveEditAlarm:
+                text: 'Save'
+                opacity: self.opacity
+        Widget:
+            size_hint: 1, 0.2
+        BoxLayout:
+            orientation: "vertical"
+            size_hint: 1, 0.1
+            BoxLayout:
+                size_hint: 1, 0.2
+                orientation: "horizontal"
+                Spinner:
+                    size_hint: 0.2, 1
+                    text: root.hour
+                    values: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+                Spinner:
+                    size_hint: 0.2, 1
+                    text: root.minute
+                    values: ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']
+                Spinner:
+                    size_hint: 0.2, 1
+                    text: root.notation
+                    values: ['AM', 'PM']
+        Widget:
+            size_hint: 1, 0.2
+        BoxLayout:
+            size_hint: 1, 0.1
+            orientation: 'horizontal'
+            canvas:
+                Color:
+                    rgba: 0.17, 0.18, 0.18, 1.0
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            Label:
+                text: 'Label'
+                text_size: self.size
+                halign: 'right'
+                valign: 'bottom'
+                padding: dp(18), dp(4)
+                font_size: 25
+            LabelTextInput:
+                size_hint: None, None
+                width: 400
+                height: 35
+                font_size: 18
+                halign: 'center'
+                text: root.label
+                multiline: False
+                background_color: 0.0, 0.0, 0.0, 0.0
+                foreground_color: 0.5, 0.5, 0.5, 0.8
+            Widget:
+                size_hint: 0.1, None
+            LabelClear:
+                text: 'x'
+                bold: True
+                font_size: 20
+                text_size: self.size
+                halign: 'left'
+                valign: 'middle'
+        Widget:
+            size_hint: 1, 0.4
+
+<SelectableAlarm>:
+    orientation: 'horizontal'
+    BoxLayout:
+        spacing: 10
+        size_hint: 0.8, 1
+        orientation: 'vertical'
+        Label:
+            text_size: self.size
+            halign: 'left'
+            valign: 'middle'
+            padding: dp(18), dp(4)
+            size_hint: 1, 0.7
+            text: '[size=86]' + root.time + '[/size]' + '[size=38]' + root.notation + '[/size]'
+            markup: True
+        Label:
+            text_size: self.size
+            halign: 'left'
+            valign: 'middle'
+            padding: dp(18), dp(4)
+            size_hint: 1, 0.3
+            text: root.label if root.label is not None else 'Alarm'
+            font_size: 28
+    AlarmSwitch:
+        size_hint: 0.2, 1
+        active: True if root.active else False
+
+<AlarmList>:
+    alarmlist_layout: layout
+    viewclass: 'SelectableAlarm'
+    SelectableAlarmLayout:
+        id: layout
+        default_size: (root.width, dp(100))
+        default_size_hint: 1.0, None
+        size_hint_y: None
+        height: self.minimum_height
+        orientation: "vertical"
+        spacing: 20
+
+<TimeBar>:
+    size_hint: 1, 0.05
+    text: self.time
+    bold: True
+    padding: dp(15), dp(4)
+    valign: 'bottom'
+    halign: 'center'
+    height: self.texture_size[1]
+    text_size: self.width, None
+    size_hint_y: None
+
+<AddAlarmButton>:
+    size_hint: 0.2, 1
+    text: '+'
+    font_size: '30sp'
+    bold: True
+    background_color: (0.0, 0.0, 0.0, 0.0)
+
+<AlarmListLabel>:
+    size_hint: 0.8, 1
+    text: 'Alarm'
+    font_size: '30sp'
+    bold: True
+    padding: dp(20), dp(4)
+    valign: 'bottom'
+    halign: 'left'
+    text_size: self.width, None
