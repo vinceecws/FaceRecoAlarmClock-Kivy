@@ -2,7 +2,6 @@
     BoxLayout:
         orientation: "vertical"
         spacing: 5
-        TimeBar:
         BoxLayout:
             canvas:
                 Color:
@@ -12,36 +11,73 @@
                     size: self.size
             size_hint: 1, 0.1
             AlarmListLabel:
+            EditAlarmsButton:
+            RegisterFaceButton:
             AddAlarmButton:
         AlarmList:
 
 <RegisterWindow>:
+    stream: stream
+    countdown: countdown
+    slowdown: slowdown
     BoxLayout:
+        size_hint: 1, 0.95
         orientation: "vertical"
         spacing: 5
-        TimeBar:
+        FloatLayout:
+            size_hint: 1, 1
+            Image:
+                id: stream
+            RegisterCountdownLabel:
+                id: countdown
+                font_size: 50
+                bold: True
+                size_hint: 0.2, 0.2
+                pos_hint: {'top': 0.8, 'right': 0.4}
+            SlowDownLabel:
+                id: slowdown
+                text: 'Slow Down'
+                opacity: 0.0
+                font_size: 50
+                bold: True
+                size_hint: 0.2, 0.2
+                pos_hint: {'top': 0.2, 'right': 0.4}
+        Button:
+            size_hint: 0.2, 0.1
+            text: 'Start Registration'
+            font_size: 28
+            on_press:
+                self.parent.parent.startRegistration()
+                self.disabled = True
 
 <AlarmWindow>:
+    alarmlabel: alarmlabel
+    stream: stream
+    time: ''
+    label: ''
     BoxLayout:
         orientation: "vertical"
         spacing: 5
-        TimeBar:
+        Image:
+            id: stream
+        AlarmWindowLabel:
+            id: alarmlabel
+            font_size: 50
+            text: self.parent.parent.time
 
 <PostAlarmWindow>:
     BoxLayout:
         orientation: "vertical"
         spacing: 5
-        TimeBar:
 
 <EditAlarmWindow>:
-    hour: self.hour
-    minute: self.minute
-    notation: self.notation
-    label: self.label
+    hour: hour
+    minute: minute
+    notation: notation
+    label: label
     BoxLayout:
         orientation: "vertical"
         spacing: 5
-        TimeBar:
         BoxLayout:
             size_hint: 1, 0.1
             canvas:
@@ -68,17 +104,20 @@
                 size_hint: 1, 0.2
                 orientation: "horizontal"
                 Spinner:
+                    id: hour
                     size_hint: 0.2, 1
-                    text: root.hour
                     values: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+                    text_autoupdate: True
                 Spinner:
+                    id: minute
                     size_hint: 0.2, 1
-                    text: root.minute
                     values: ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']
+                    text_autoupdate: True
                 Spinner:
+                    id: notation
                     size_hint: 0.2, 1
-                    text: root.notation
                     values: ['AM', 'PM']
+                    text_autoupdate: True
         Widget:
             size_hint: 1, 0.2
         BoxLayout:
@@ -98,12 +137,12 @@
                 padding: dp(18), dp(4)
                 font_size: 25
             LabelTextInput:
+                id: label
                 size_hint: None, None
                 width: 400
                 height: 35
                 font_size: 18
                 halign: 'center'
-                text: root.label
                 multiline: False
                 background_color: 0.0, 0.0, 0.0, 0.0
                 foreground_color: 0.5, 0.5, 0.5, 0.8
@@ -120,35 +159,39 @@
             size_hint: 1, 0.4
 
 <SelectableAlarm>:
+    time: ''
+    notation: ''
+    label: ''
+    active: False
     orientation: 'horizontal'
     BoxLayout:
         spacing: 10
         size_hint: 0.8, 1
         orientation: 'vertical'
         Label:
+            text: '[size=86]{}[/size][size=38]{}[/size]'.format(self.parent.parent.time, self.parent.parent.notation)
             text_size: self.size
             halign: 'left'
             valign: 'middle'
             padding: dp(18), dp(4)
             size_hint: 1, 0.7
-            text: '[size=86]' + root.time + '[/size]' + '[size=38]' + root.notation + '[/size]'
             markup: True
         Label:
+            text: self.parent.parent.label
             text_size: self.size
             halign: 'left'
             valign: 'middle'
             padding: dp(18), dp(4)
             size_hint: 1, 0.3
-            text: root.label if root.label is not None else 'Alarm'
             font_size: 28
     AlarmSwitch:
+        active: self.parent.active
         size_hint: 0.2, 1
-        active: True if root.active else False
 
 <AlarmList>:
-    alarmlist_layout: layout
+    alarmlayout: layout
     viewclass: 'SelectableAlarm'
-    SelectableAlarmLayout:
+    AlarmLayout:
         id: layout
         default_size: (root.width, dp(100))
         default_size_hint: 1.0, None
@@ -159,7 +202,6 @@
 
 <TimeBar>:
     size_hint: 1, 0.05
-    text: self.time
     bold: True
     padding: dp(15), dp(4)
     valign: 'bottom'
@@ -171,6 +213,13 @@
 <AddAlarmButton>:
     size_hint: 0.2, 1
     text: '+'
+    font_size: '30sp'
+    bold: True
+    background_color: (0.0, 0.0, 0.0, 0.0)
+
+<RegisterFaceButton>:
+    size_hint: 0.2, 1
+    text: '+F'
     font_size: '30sp'
     bold: True
     background_color: (0.0, 0.0, 0.0, 0.0)

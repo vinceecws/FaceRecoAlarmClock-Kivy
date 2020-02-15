@@ -19,9 +19,8 @@ class CamApp(App):
     def build(self):
         #Directories
         self.face_dir = './faces'
-        self.weight_dir = './Siamese_MobileNetV2/weights/siamese_mobilenet_v2_pretrained_triplet_negative_hard5706.pkl'
+        self.weight_dir = './Siamese_MobileNetV2/weights/augmented/siamese_mobilenet_v2_pretrained_triplet_negative_hard_with_augmentation_3057.pkl'
         self.haar_dir = './Siamese_MobileNetV2/src/utils/haarcascade_frontalface_default.xml'
-        self.face_id = 'a13642cf-8f08-4bee-93d3-111d1d6462c1'
 
         self.p = None
         self.img1 = Image()
@@ -64,13 +63,13 @@ class CamApp(App):
                     print(retval)
                     self.p = None
             else:
-                self.p = Process(target=self.identifyFace, args=(self.queue, image, self.face_id,))
+                self.p = Process(target=self.identifyFace, args=(self.queue, image,))
                 self.p.start()
 
         return processed_frame
 
-    def identifyFace(self, queue, image, face_id):
-        res = self.facerecognition.runRecognition(image, face_id)
+    def identifyFace(self, queue, image):
+        res = self.facerecognition.runRecognition(image)
         queue.put(res)
 
     def mirrorizeFrame(self, frame):

@@ -18,6 +18,7 @@ class AlarmManager():
     def checkAndTriggerAlarms(self): #Checked every minute
         active = filter(lambda alarm: alarm.isActive(), self.alarms)
         triggeredAlarms = []
+        triggered = False
         for alarm in active:
             if alarm.dateAndTime == datetime.now().replace(second=0, microsecond=0):
                 triggeredAlarms.append(alarm)
@@ -37,7 +38,10 @@ class AlarmManager():
             if hour == 12:
                 hour = 0
 
-        alarm = Alarm(hour, minute, active=True, label=label)
+        if label is None:
+            label = ''
+
+        alarm = Alarm(-1, hour, minute, active=True, label=label)
         self.alarms.append(alarm)
         self.sortAlarms()
 
@@ -52,6 +56,9 @@ class AlarmManager():
         elif notation == 'AM':
             if hour == 12:
                 hour = 0
+
+        if label is None:
+            label = ''
 
         self.alarms[idx].setTime(hour, minute)
         self.alarms[idx].setLabel(label)
@@ -68,6 +75,8 @@ class AlarmManager():
 
     def sortAlarms(self):
         self.alarms.sort(key=lambda alarm: alarm.dateAndTime.time())
+        for ind, alarm in enumerate(self.alarms):
+            alarm.setIndex(ind)
 
     def loadAlarms(self, alarms_dir):
         with open(alarms_dir, "rb") as file: 
@@ -78,7 +87,8 @@ class AlarmManager():
             pickle.dump(self.alarms, file)
 
 class Alarm():
-    def __init__(self, hour, minute, active=True, label=None):
+    def __init__(self, index, hour, minute, active=True, label=None):
+        self.index = index
         self.dateAndTime = datetime.now()
         self.setTime(hour=hour, minute=minute)
         self.label = label
@@ -101,6 +111,9 @@ class Alarm():
         notation = 'HRS'
         return time, notation
 
+    def setIndex(self, index):
+        self.index = index
+
     def setTime(self, hour, minute, second=0, microsecond=0):
         self.dateAndTime = self.dateAndTime.replace(hour=hour, minute=minute, second=second, microsecond=microsecond)
 
@@ -112,6 +125,9 @@ class Alarm():
 
     def setLabel(self, label):
         self.label = label
+
+    def getIndex(self):
+        return self.index
 
     def getHour(self):
         return self.dateAndTime.strftime("%I")

@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as f
 import cv2
 import uuid
+import pickle
 from PIL import Image
 from torchvision import transforms
 from Siamese_MobileNetV2.src.models.Siamese_MobileNetV2 import Siamese_MobileNetV2_Triplet, TripletLoss
@@ -16,7 +17,9 @@ class FaceRecognitionAPI():
         self.haar_dir = haar_dir
 
         #Initialize faces
-        self.faces = os.listdir(face_dir)
+        self.syncFaces()
+        self.loadCurrent()
+        print(f'Current face id: {self.current_face_id}')
 
         #Initialize Haar
         self.face_cascade = cv2.CascadeClassifier(haar_dir)
@@ -41,21 +44,23 @@ class FaceRecognitionAPI():
                 vectors.append(self.computeVector(input_image))
 
         face_vector = torch.cat(vectors, axis=0)
-        self.registerFace(face_vector, current_id)
+        current_id = self.registerFace(face_vector, current_id)
+        return current_id
 
     def registerFace(self, face_vector, current_id=None):
-        if not current_id:
+        if current_id is None:
             current_id = str(uuid.uuid4()) #Generate new id
 
         self.writeFace(face_vector, current_id) #Add new entry
+        return current_id
 
-    def updateFaces(self):
-        self.faces = os.listdir(self.face_dir)
+    def syncFaces(self):
+        self.faces = [face for face in os.listdir(self.face_dir) if face != 'current']
 
-    def runRecognition(self, frame, face_id):
+    def runRecognition(self, frame):
+        assert self.current_face is not None and self.current_face_id is not None, 'Set up a current face vector first, call loadCurrent()'
         output = self.model(frame)
-        face_vector = self.loadFace(face_id)
-        return self.withinThreshold(output, face_vector)
+        return self.withinThreshold(output, self.current_face)
 
     def computeVector(self, image):
         return self.model(image)
@@ -65,6 +70,14 @@ class FaceRecognitionAPI():
         print(score)
         return True if score < threshold else False
 
+    def preprocessFrame(self, frame):
+        image = cv2.resize(frame, (self.input_width, self.input_height))
+        image = Image.fromarray(image) 
+        image = self.preprocess(image).unsqueeze(0) #(1, 3, 224, 224)
+
+        return True, frame, image
+
+    '''
     def preprocessFrame(self, frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
@@ -82,6 +95,7 @@ class FaceRecognitionAPI():
             return True, frame, image
 
         return False, frame, None
+    '''
 
     '''
         I/O Utilities
@@ -102,11 +116,32 @@ class FaceRecognitionAPI():
     def writeFace(self, face_vector, face_id):
         face_id = f'{face_id}.pth'
         torch.save(face_vector, os.path.join(self.face_dir, face_id))
-        self.updateFaces()
+        self.syncFaces()
 
     def deleteFace(self, face_id):
         face_id = f'{face_id}.pth'
         assert face_id in self.faces
         os.remove(os.path.join(self.face_dir, face_id))
-        self.updateFaces()
+        self.syncFaces()
+
+    def loadCurrent(self):
+        current_dir = os.path.join(self.face_dir, 'current')
+        assert os.path.isfile(current_dir), f'Path to \'{current_dir}\' does not exist'
+        with open(current_dir, "rb") as file: 
+            self.current_face_id = pickle.load(file)
+
+        if self.current_face_id:
+            self.current_face = self.loadFace(self.current_face_id)
+            return True
+
+        self.current_face = None
+        return False
+
+    def saveCurrent(self, face_id):
+        current_dir = os.path.join(self.face_dir, 'current')
+        self.current_face_id = face_id
+        self.current_face = self.loadFace(self.current_face_id)
+        with open(current_dir, "wb") as file:
+            pickle.dump(self.current_face_id, file)
+        print('Current face id: {}'.format(self.current_face_id))
 
