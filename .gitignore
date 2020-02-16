@@ -1,4 +1,9 @@
-screenshots/
+# exclude everything
+somefolder/*
+
+# exception to the rule
+!somefolder/.gitkeep 
+
 faces/
 Siamese_MobileNetV2/Faces/
 Siamese_MobileNetV2/Faces_cropped/
