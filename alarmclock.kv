@@ -92,9 +92,38 @@
             text: self.parent.parent.time + '\n' + self.parent.parent.label
 
 <PostAlarmWindow>:
+    screencap: screencap
     BoxLayout:
         orientation: "vertical"
         spacing: 5
+        FloatLayout:
+            Image:
+                id: screencap
+                size_hint: 0.9, 0.9
+                allow_stretch: True
+                pos_hint: {'x': 0.05, 'y': 0.1}
+            Label:
+                text: 'Good Morning :)'
+                font_size: 50
+                bold: True
+                color: (0.92, 0.83, 0.38, 1.0)
+                size_hint: 0.2, 0.2
+                pos_hint: {'x': 0.4, 'y': 0.8}
+            Button:
+                size_hint: 0.2, 0.1
+                pos_hint: {'right': 0.5}
+                text: 'Save'
+                font_size: 28
+                on_press:
+                    root.saveImage()
+                    root.goHome()
+            Button:
+                size_hint: 0.2, 0.1
+                pos_hint: {'right': 0.7}
+                text: 'Close'
+                font_size: 28
+                on_press:
+                    root.goHome()
 
 <EditAlarmWindow>:
     index: 0

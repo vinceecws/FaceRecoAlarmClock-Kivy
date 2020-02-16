@@ -92,6 +92,7 @@ class FaceRecognitionAPI():
         return True, frame, image
 
     def cropAndPreprocessFrame(self, frame):
+        original = frame
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
         
@@ -105,9 +106,9 @@ class FaceRecognitionAPI():
             image = Image.fromarray(image) 
             image = self.preprocess(image).unsqueeze(0) #(1, 3, 224, 224)
 
-            return True, frame, image
+            return True, frame, image, original
 
-        return False, frame, None
+        return False, frame, None, original
 
     '''
         I/O Utilities

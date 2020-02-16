@@ -29,10 +29,12 @@ from OpticalFlowController import OpticalFlowController
 from multiprocessing import Process, Queue
 from datetime import datetime, timedelta
 import cv2
+import os
 
 video_ind = 1
 frame_width = 350
 frame_height = 350
+screenshots_dir = './screenshots'
 sound_dir = './alarms/funny.mp3'
 face_dir = './faces'
 weight_dir = './MobileFaceNet_Pytorch/model/best/068.ckpt'
@@ -148,7 +150,7 @@ class RegisterWindow(Screen): #Button to start face registration on press
         self.stream.texture = streamTexture
 
     def capture(self, dt): #capture every 0.5 s
-        valid, _, input_image = self.facerecog.cropAndPreprocessFrame(self.frame)
+        valid, _, input_image, _ = self.facerecog.cropAndPreprocessFrame(self.frame)
         if valid:
             self.valid_images += 1
             self.screencaps.append(input_image)
@@ -214,7 +216,7 @@ class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn o
         self.stream.texture = texture
 
     def detectFace(self, frame):
-        detected, processed_frame, image = self.facerecog.cropAndPreprocessFrame(frame)
+        detected, processed_frame, image, self.screenshot = self.facerecog.cropAndPreprocessFrame(frame)
         if detected:
             if self.p is not None:
                 if self.p.is_alive():
@@ -233,8 +235,9 @@ class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn o
     def closeAlarm(self):
         self.stop()
         self.alarmmanager.deactivateAlarm(self.curr_idx)
-        self.screenmanager.transition.direction = 'down'
-        self.screenmanager.current = 'HomeWindow'
+        self.screenmanager.get_screen('PostAlarmWindow').initialize(self.screenshot)
+        self.screenmanager.transition.direction = 'left'
+        self.screenmanager.current = 'PostAlarmWindow'
 
     def identifyFace(self, queue, image):
         res = self.facerecog.runRecognition(image)
@@ -245,8 +248,26 @@ class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn o
 
 class PostAlarmWindow(Screen): #Upon turn off, greet good morning, good afternoon etc. according to time
                                 #Show stats: Time taken to turn off alarm, no. of times snoozed, high score, running average and stuff
+    global sm
+    screenmanager = sm
+    screencap = ObjectProperty()
 
-    pass
+    def initialize(self, image):
+        self.image = image
+        buf = cv2.flip(image, 0)
+        buf = buf.tostring()
+        texture = Texture.create(size=(image.shape[1], image.shape[0]), colorfmt='bgr')
+        texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+        self.screencap.texture = texture
+
+    def goHome(self):
+        self.screenmanager.transition.direction = 'up'
+        self.screenmanager.current = 'HomeWindow'
+
+    def saveImage(self):
+        global screenshots_dir
+        timestamp = datetime.now().strftime("%y_%m_%d-%I_%M_%S_%p.jpg")
+        cv2.imwrite(os.path.join(screenshots_dir, timestamp), self.image)
 
 class EditAlarmWindow(Screen):
     index = NumericProperty()
@@ -351,17 +372,20 @@ class SelectableAlarm(RecycleDataViewBehavior, BoxLayout):
                 self.alarmlist.deactivateAlarm(self.index)
 
     def on_touch_up(self, touch):
-        if self.collide_point(*touch.pos) and self.alarmlist.isEditActive():
-            alarm = manager.getAlarm(self.index)
-            hour = alarm.getHour()
-            minute = alarm.getMinute()
-            notation = alarm.getNotation()
-            label = alarm.getLabel()
-            self.screenmanager.get_screen('EditAlarmWindow').setValues(self.index, hour, minute, notation, label)
-            self.screenmanager.transition.direction = 'up'
-            self.screenmanager.current = 'EditAlarmWindow'
+        if self.collide_point(*touch.pos):
+            if self.alarmlist.isEditActive():
+                alarm = manager.getAlarm(self.index)
+                hour = alarm.getHour()
+                minute = alarm.getMinute()
+                notation = alarm.getNotation()
+                label = alarm.getLabel()
+                self.screenmanager.get_screen('EditAlarmWindow').setValues(self.index, hour, minute, notation, label)
+                self.screenmanager.transition.direction = 'up'
+                self.screenmanager.current = 'EditAlarmWindow'
 
-            return True
+                return True
+
+        return False
 
 class AlarmWindowLabel(Label):
 
@@ -561,10 +585,13 @@ class LabelClear(Label):
 
 class AlarmSwitch(Switch):
     def on_touch_up(self, touch):
+        print('SWITCH')
         if self.collide_point(*touch.pos):
             self.parent.switchAlarm(not self.active)
 
-        return True
+            return True
+
+        return False
 
 
 class TimeBar(Label):
