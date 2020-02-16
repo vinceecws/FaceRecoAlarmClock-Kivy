@@ -2,9 +2,11 @@ from kivy.app import App
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.animation import Animation
+from kivy.graphics import Color, Rectangle
 from kivy.graphics.texture import Texture
 from kivy.uix.screenmanager import Screen, ScreenManager
 from kivy.core.window import Window
+from kivy.core.audio import SoundLoader
 from kivy.uix.widget import Widget
 from kivy.uix.recycleview import RecycleView
 from kivy.uix.recycleview.datamodel import RecycleDataModel
@@ -31,10 +33,13 @@ import cv2
 video_ind = 1
 frame_width = 350
 frame_height = 350
+sound_dir = './alarms/funny.mp3'
 face_dir = './faces'
 weight_dir = './MobileFaceNet_Pytorch/model/best/068.ckpt'
 haar_dir = './Siamese_MobileNetV2/src/utils/haarcascade_frontalface_default.xml'
 alarms_dir = './alarms/alarms'
+sound = SoundLoader.load(sound_dir)
+sound.loop = True
 manager = AlarmManager(alarms_dir)
 sm = ScreenManager()
 facerecognition = FaceRecognitionAPI(face_dir, weight_dir, haar_dir)
@@ -71,6 +76,7 @@ class RegisterWindow(Screen): #Button to start face registration on press
     screenmanager = sm
     facerecog = facerecognition
     opticalflow = opticalflowcontroller
+    start = ObjectProperty()
     stream = ObjectProperty()
     countdown = ObjectProperty()
     slowdown = ObjectProperty()
@@ -84,13 +90,22 @@ class RegisterWindow(Screen): #Button to start face registration on press
         self.num_images_required = 20
         self.valid_images = 0
         self.progress_bar.value_normalized = 0.0
+        self.stream_event = None
+        self.capture_event = None
 
     def startStream(self):
+        self.valid_images = 0
+        self.progress_bar.value_normalized = 0.0
         self.opticalflow.start()
         self.stream_event = Clock.schedule_interval(self.update, 1.0/33.0)
 
     def endStream(self):
-        self.stream_event.cancel()
+        if self.stream_event is not None:
+            self.stream_event.cancel()
+
+    def endCapture(self):
+        if self.capture_event is not None:
+            self.capture_event.cancel()
 
     def startRegistration(self):
         self.registering = True
@@ -98,7 +113,7 @@ class RegisterWindow(Screen): #Button to start face registration on press
 
     def completeRegistration(self):
         self.registering = False
-        self.capture_event.cancel()
+        self.endCapture()
         Clock.schedule_once(self.endRegistration, 2.5)
         self.register()
 
@@ -106,6 +121,12 @@ class RegisterWindow(Screen): #Button to start face registration on press
         self.endStream()
         self.goHome()
         self.opticalflow.release()
+        self.start.disabled = False
+
+    def cancelRegistration(self):
+        self.registering = False
+        self.endCapture()
+        self.endRegistration(None)
 
     def register(self):
         face_id = self.facerecog.batchRegister(self.screencaps)
@@ -156,6 +177,7 @@ class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn o
         global video_ind
         global frame_width
         global frame_height
+        global sound
         self.cap = cv2.VideoCapture(video_ind)
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
@@ -164,11 +186,13 @@ class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn o
         self.queue = Queue()
         self.stream_event = Clock.schedule_interval(self.update, 1.0/33.0)
         self.alarmlabel.start(1)
+        sound.play()
 
     def stop(self):
         self.cap.release()
         self.alarmlabel.finish()
         self.stream_event.cancel()
+        sound.stop()
         if self.p is not None:
             self.p.terminate()
 
@@ -225,20 +249,21 @@ class PostAlarmWindow(Screen): #Upon turn off, greet good morning, good afternoo
     pass
 
 class EditAlarmWindow(Screen):
+    index = NumericProperty()
     hour = ObjectProperty()
     minute = ObjectProperty()
     notation = ObjectProperty()
     label = ObjectProperty()
 
     def setValues(self, idx, hour, minute, notation, label):
-        self.curr_idx = idx
+        self.index = idx
         self.hour.text = hour
         self.minute.text = minute
         self.notation.text = notation
         self.label.text = label
 
     def getValues(self):
-        return self.curr_idx, self.hour.text, self.minute.text, self.notation.text, self.label.text
+        return self.index, self.hour.text, self.minute.text, self.notation.text, self.label.text
 
 class WindowsManager(ScreenManager):
     pass
@@ -250,7 +275,8 @@ class AlarmList(RecycleView): #Controller
         super(AlarmList, self).__init__(**kwargs)
         global manager
         self.manager = manager
-        Clock.schedule_interval(self.reload, 0.2)
+        self.reload_event = Clock.schedule_interval(self.reload, 0.2)
+        self.edit = False
 
     def reload(self, dt):
         self.data = [self.getAlarmDict(idx) for idx in range(len(self.manager))]
@@ -258,17 +284,45 @@ class AlarmList(RecycleView): #Controller
     def getAlarmDict(self, idx):
         alarm = self.manager.getAlarm(idx)
         time, notation = alarm.get12()
-        label = alarm.label
+        label = alarm.getLabel()
         active = alarm.isActive()
         return {'index': idx, 'time': time, 'notation': notation, 'label': label, 'active': active}
 
     def editAlarm(self, index, hour, minute, notation, label):
+        self.reload_event.cancel()
         manager.editAlarm(index, hour, minute, notation, label)
         manager.saveAlarms(alarms_dir)
+        self.reload_event = Clock.schedule_interval(self.reload, 0.2)
 
     def addAlarm(self, hour, minute, notation, label):
+        self.reload_event.cancel()
         index = manager.addAlarm(hour, minute, notation, label)
         manager.saveAlarms(alarms_dir)
+        self.reload_event = Clock.schedule_interval(self.reload, 0.2)
+
+    def removeAlarm(self, index):
+        self.reload_event.cancel()
+        manager.removeAlarm(index)
+        manager.saveAlarms(alarms_dir)
+        self.reload_event = Clock.schedule_interval(self.reload, 0.2)
+
+    def activateAlarm(self, idx):
+        self.reload_event.cancel()
+        manager.activateAlarm(idx)
+        manager.saveAlarms(alarms_dir)
+        self.reload_event = Clock.schedule_interval(self.reload, 0.2)
+
+    def deactivateAlarm(self, idx):
+        self.reload_event.cancel()
+        manager.deactivateAlarm(idx)
+        manager.saveAlarms(alarms_dir)
+        self.reload_event = Clock.schedule_interval(self.reload, 0.2)
+
+    def toggleEdit(self):
+        self.edit = not self.edit
+
+    def isEditActive(self):
+        return self.edit
 
 class AlarmLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):  #View
     pass
@@ -277,7 +331,9 @@ alarm_list = AlarmList()
 
 class SelectableAlarm(RecycleDataViewBehavior, BoxLayout):
     global sm
+    global alarm_list
     screenmanager = sm
+    alarmlist = alarm_list
     index = NumericProperty()
     time = StringProperty()
     notation = StringProperty()
@@ -288,13 +344,14 @@ class SelectableAlarm(RecycleDataViewBehavior, BoxLayout):
         super(SelectableAlarm, self).__init__(**kwargs)
 
     def switchAlarm(self, active):
-        if active:
-            manager.activateAlarm(self.index)
-        else:
-            manager.deactivateAlarm(self.index)
+        if not self.alarmlist.isEditActive():
+            if active:
+                self.alarmlist.activateAlarm(self.index)
+            else:
+                self.alarmlist.deactivateAlarm(self.index)
 
     def on_touch_up(self, touch):
-        if self.collide_point(*touch.pos):
+        if self.collide_point(*touch.pos) and self.alarmlist.isEditActive():
             alarm = manager.getAlarm(self.index)
             hour = alarm.getHour()
             minute = alarm.getMinute()
@@ -327,25 +384,26 @@ class SlowDownLabel(Label):
         self.anim = Animation(opacity=1, duration=duration*0.25) + Animation(opacity=0, duration=duration*0.75)
         self.anim.start(self)
 
-class RegisterCountdownLabel(Label):
+class EditAlarmsButton(Label):
+    global alarm_list
+    alarmlist = alarm_list
 
-    def start(self, duration):
-        self.update_event = Clock.schedule_interval(self.updateLabel, 1)
-        self.countdown_event = Clock.schedule_once(self.finish, duration)
-        self.time_left = duration
-        self.text = f'{self.time_left}'
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos): 
+            self.opacity = 0.5
 
-    def updateLabel(self, val):
-        self.time_left -= 1
-        print(f'{self.time_left} seconds left.')
-        self.text = f'{self.time_left}'
+    def on_touch_move(self, touch):
+        if not self.collide_point(*touch.pos): 
+            self.opacity = 1.0
 
-    def finish(self, animation):
-        self.update_event.cancel()
-        self.text = "REGISTRATION COMPLETE"
-
-class EditAlarmsButton(Button):
-    pass
+    def on_touch_up(self, touch):
+        if self.collide_point(*touch.pos): 
+            self.opacity = 1
+            self.alarmlist.toggleEdit()
+            if self.alarmlist.isEditActive():
+                self.text = 'Done'
+            else:
+                self.text = 'Edit'
 
 class RegisterFaceButton(Button):
     global sm
@@ -457,6 +515,31 @@ class SaveEditAlarm(Label):
         else:
             self.alarmlist.editAlarm(index, hour, minute, notation, label)
 
+class DeleteEditAlarm(Label):
+    global manager
+    global sm
+    global alarm_list
+    screenmanager = sm
+    opacity = NumericProperty(1)
+    alarmlist = alarm_list
+
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos): 
+            self.opacity = 0.5
+
+    def on_touch_move(self, touch):
+        if not self.collide_point(*touch.pos): 
+            self.opacity = 1.0
+
+    def on_touch_up(self, touch):
+        if self.collide_point(*touch.pos): 
+            self.opacity = 1
+            index, _, _, _, _ = self.screenmanager.get_screen('EditAlarmWindow').getValues()
+            if index >= 0:
+                self.alarmlist.removeAlarm(index)
+                self.screenmanager.transition.direction = 'down'
+                self.screenmanager.current = 'HomeWindow'
+
 class LabelTextInput(TextInput):
     pass
 
@@ -479,12 +562,9 @@ class LabelClear(Label):
 class AlarmSwitch(Switch):
     def on_touch_up(self, touch):
         if self.collide_point(*touch.pos):
-            new_active = not self.active
-            self.parent.switchAlarm(new_active)
-            self.active = new_active
-            return True
+            self.parent.switchAlarm(not self.active)
 
-        return super(AlarmSwitch, self).on_touch_up(touch)
+        return True
 
 
 class TimeBar(Label):
@@ -524,8 +604,10 @@ class AlarmClockApp(App):
         global opticalflowcontroller
         global manager
         global alarms_dir
+        global sound
         manager.saveAlarms(alarms_dir)
         opticalflowcontroller.release()
+        sound.unload()
         return False
 
 if __name__ == '__main__':

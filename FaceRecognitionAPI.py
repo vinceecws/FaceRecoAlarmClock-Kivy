@@ -76,9 +76,12 @@ class FaceRecognitionAPI():
     def computeVector(self, image):
         return self.model(image)
 
-    def withinThreshold(self, face_vector1, face_vector2, threshold=3000):
-        score = torch.mean(TripletLoss.dist(face_vector1, face_vector2))
-        print(score)
+    def withinThreshold(self, face_vector1, face_vector2, threshold=2700, metric='min'):
+        assert metric in ['mean', 'min']
+        if metric == 'mean':
+            score = torch.mean(TripletLoss.dist(face_vector1, face_vector2))
+        elif metric == 'min':
+            score = torch.min(TripletLoss.dist(face_vector1, face_vector2))
         return True if score < threshold else False
 
     def preprocessFrame(self, frame):

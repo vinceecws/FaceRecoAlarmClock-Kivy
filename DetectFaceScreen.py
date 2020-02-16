@@ -48,9 +48,9 @@ class CamApp(App):
 
     def initializeFaceDetection(self):
         self.facerecognition = FaceRecognitionAPI(self.face_dir, self.weight_dir, self.haar_dir)
-        self.capture = cv2.VideoCapture(0)
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 500);
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 500);
+        self.capture = cv2.VideoCapture(1)
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 350);
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 350);
 
     def detectFace(self, frame):
         detected, processed_frame, image = self.facerecognition.cropAndPreprocessFrame(frame)

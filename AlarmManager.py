@@ -12,6 +12,9 @@ class AlarmManager():
     def __len__(self):
         return len(self.alarms)
 
+    def __str__(self):
+        return [str(alarm) for alarm in self.alarms]
+
     def getAlarm(self, idx):
         return self.alarms[idx]
 
@@ -70,6 +73,7 @@ class AlarmManager():
 
     def removeAlarm(self, idx):
         del self.alarms[idx]
+        self.sortAlarms()
 
     def activateAlarm(self, idx):
         self.alarms[idx].activate()
@@ -102,7 +106,7 @@ class Alarm():
     def __str__(self):
         mode = 'ON' if self.active else 'OFF'
         time, notation = self.get12()
-        return f'Time: {time}{notation}, Label: {self.label}, Mode: {mode}'
+        return f'Index: {self.index}, Time: {time}{notation}, Label: {self.label}, Mode: {mode}'
 
     def get12(self):
         time = self.dateAndTime.strftime("%I:%M")
@@ -149,7 +153,7 @@ class Alarm():
         return self.active
 
     def activate(self):
-        if self.dateAndTime.time() <= datetime.now().time().replace(second=0, microsecond=0):
+        if self.dateAndTime <= datetime.now().replace(second=0, microsecond=0):
             self.dateAndTime = self.dateAndTime + timedelta(days=1)
 
         self.setActive(True)
