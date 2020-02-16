@@ -53,7 +53,7 @@ class CamApp(App):
         self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 350);
 
     def detectFace(self, frame):
-        detected, processed_frame, image = self.facerecognition.cropAndPreprocessFrame(frame)
+        detected, processed_frame, image, original = self.facerecognition.cropAndPreprocessFrame(frame)
         if detected:
             if self.p:
                 if self.p.is_alive():
