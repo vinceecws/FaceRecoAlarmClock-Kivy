@@ -19,6 +19,7 @@ from kivy.uix.popup import Popup
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.actionbar import ActionBar
+from kivy.uix.progressbar import ProgressBar
 from kivy.properties import ListProperty, StringProperty, ObjectProperty, BooleanProperty, NumericProperty
 from AlarmManager import AlarmManager
 from FaceRecognitionAPI import FaceRecognitionAPI
@@ -27,15 +28,17 @@ from multiprocessing import Process, Queue
 from datetime import datetime, timedelta
 import cv2
 
+video_ind = 1
+frame_width = 300
+frame_height = 300
 face_dir = './faces'
-weight_dir = './Siamese_MobileNetV2/weights/augmented/siamese_mobilenet_v2_pretrained_triplet_negative_hard_with_augmentation_5729.pkl'
+weight_dir = './MobileFaceNet_Pytorch/model/best/068.ckpt'
 haar_dir = './Siamese_MobileNetV2/src/utils/haarcascade_frontalface_default.xml'
 alarms_dir = './alarms/alarms'
-capture = cv2.VideoCapture()
 manager = AlarmManager(alarms_dir)
 sm = ScreenManager()
 facerecognition = FaceRecognitionAPI(face_dir, weight_dir, haar_dir)
-opticalflowcontroller = OpticalFlowController(capture)
+opticalflowcontroller = OpticalFlowController(video_ind, frame_width=frame_width, frame_height=frame_height)
 
 class HomeWindow(Screen): #Alarm list, button to re-register face, button to trigger add new alarm (disabled if face unregistered)
                           #Popup with slider to set time, button to set alarm, cross button to exit
@@ -71,14 +74,16 @@ class RegisterWindow(Screen): #Button to start face registration on press
     stream = ObjectProperty()
     countdown = ObjectProperty()
     slowdown = ObjectProperty()
+    progress_bar = ObjectProperty()
 
     def __init__(self, **kwargs):
         super(RegisterWindow, self).__init__(**kwargs)
         self.prev = None
         self.screencaps = []
-        self.duration = 10
-        self.countdown.duration = self.duration
         self.registering = False
+        self.num_images_required = 20
+        self.valid_images = 0
+        self.progress_bar.value_normalized = 0.0
 
     def startStream(self):
         self.opticalflow.start()
@@ -89,11 +94,9 @@ class RegisterWindow(Screen): #Button to start face registration on press
 
     def startRegistration(self):
         self.registering = True
-        Clock.schedule_once(self.completeRegistration, self.duration)
         self.capture_event = Clock.schedule_interval(self.capture, 1.0/2.0)
-        self.countdown.start(self.duration)
 
-    def completeRegistration(self, dt):
+    def completeRegistration(self):
         self.registering = False
         self.capture_event.cancel()
         Clock.schedule_once(self.endRegistration, 2.5)
@@ -105,8 +108,7 @@ class RegisterWindow(Screen): #Button to start face registration on press
         self.opticalflow.release()
 
     def register(self):
-        print('REGISTERING')
-        face_id = self.facerecog.processAndRegister(self.screencaps)
+        face_id = self.facerecog.batchRegister(self.screencaps)
         self.facerecog.saveCurrent(face_id) #Set face as current
 
     def goHome(self):
@@ -125,15 +127,25 @@ class RegisterWindow(Screen): #Button to start face registration on press
         self.stream.texture = streamTexture
 
     def capture(self, dt): #capture every 0.5 s
-        self.screencaps.append(self.frame)
+        valid, _, input_image = self.facerecog.cropAndPreprocessFrame(self.frame)
+        if valid:
+            self.valid_images += 1
+            self.screencaps.append(input_image)
+            self.updateProgressBar()
+
+    def updateProgressBar(self):
+        self.progress_bar.value_normalized = self.valid_images / self.num_images_required
+        if self.progress_bar.value_normalized == 1.0:
+            self.completeRegistration()
+
+class RegisterProgressBar(ProgressBar):
+    pass
 
 
 class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn off, track stats in background
     global facerecognition
     global sm
     global manager
-    global capture
-    cap = capture
     alarmmanager = manager
     screenmanager = sm
     facerecog = facerecognition
@@ -141,10 +153,15 @@ class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn o
     alarmlabel = ObjectProperty()
 
     def trigger(self):
+        global video_ind
+        global frame_width
+        global frame_height
+        self.cap = cv2.VideoCapture(video_ind)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, frame_width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, frame_height)
         self.detected = False
         self.p = None
         self.queue = Queue()
-        self.cap.open(0)
         self.stream_event = Clock.schedule_interval(self.update, 1.0/33.0)
         self.alarmlabel.start(1)
 
@@ -152,20 +169,20 @@ class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn o
         self.cap.release()
         self.alarmlabel.finish()
         self.stream_event.cancel()
-        self.p.terminate()
+        if self.p is not None:
+            self.p.terminate()
 
     def setValues(self, idx, time, notation, label):
         self.curr_idx = idx
         self.time = time
         self.label = label
+        self.alarmmanager.deactivateAlarm(idx)
 
     def update(self, dt):
         _, frame = self.cap.read()
         frame = self.flipFrame(frame)
-        '''
         if not self.detected:
             frame = self.detectFace(frame)
-        '''
         buf = cv2.flip(frame, 0)
         buf = buf.tostring()
         texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
@@ -173,7 +190,7 @@ class AlarmWindow(Screen): #Upon recognition a pop-up to ask if snooze or turn o
         self.stream.texture = texture
 
     def detectFace(self, frame):
-        detected, processed_frame, image = self.facerecog.preprocessFrame(frame)
+        detected, processed_frame, image = self.facerecog.cropAndPreprocessFrame(frame)
         if detected:
             if self.p is not None:
                 if self.p.is_alive():
@@ -245,12 +262,19 @@ class AlarmList(RecycleView): #Controller
     def editAlarm(self, index, hour, minute, notation, label):
         manager.editAlarm(index, hour, minute, notation, label)
         manager.saveAlarms(alarms_dir)
+        data = self.getAlarmDict(index)
+        view = self.view_adapter.get_view(index, data, SelectableAlarm)
+        view.time = '[size=86]{}[/size][size=38]{}[/size]'.format(data['time'], data['notation'])
+        view.label = data['label']
+        view.active = data['active']
         self.syncData()
 
     def addAlarm(self, hour, minute, notation, label):
-        manager.addAlarm(hour, minute, notation, label)
+        index = manager.addAlarm(hour, minute, notation, label)
         manager.saveAlarms(alarms_dir)
-        self.syncData()
+        #self.syncData()
+        data = self.getAlarmDict(index)
+        view = self.view_adapter.create_view(index, data, SelectableAlarm)
 
     def syncData(self):
         self.data = [self.getAlarmDict(i) for i in range(len(self.manager))]
@@ -516,10 +540,9 @@ class AlarmClockApp(App):
         global alarms_dir
         manager.saveAlarms(alarms_dir)
         opticalflowcontroller.release()
-        return True
+        return False
 
 if __name__ == '__main__':
     #Window.fullscreen = True
     AlarmClockApp().run()
     cv2.destroyAllWindows()
-    manager.saveAlarms(alarms_dir)

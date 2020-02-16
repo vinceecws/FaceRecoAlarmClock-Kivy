@@ -7,6 +7,7 @@ import pickle
 from PIL import Image
 from torchvision import transforms
 from Siamese_MobileNetV2.src.models.Siamese_MobileNetV2 import Siamese_MobileNetV2_Triplet, TripletLoss
+from MobileFaceNet_Pytorch.core import model as MobileFaceNetModel
 
 class FaceRecognitionAPI():
     def __init__(self, face_dir, weight_dir, haar_dir):
@@ -27,9 +28,10 @@ class FaceRecognitionAPI():
         #Initialize model
         self.input_width = 224
         self.input_height = 224
-        self.model = Siamese_MobileNetV2_Triplet()
-        self.model.eval()
-        self.loadModelWeights(weight_dir)
+        #self.model = Siamese_MobileNetV2_Triplet()
+        #self.model.eval()
+        self.model = MobileFaceNetModel.MobileFacenet()
+        self.loadModelWeights(weight_dir, key='net_state_dict')
         self.preprocess = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
@@ -45,6 +47,15 @@ class FaceRecognitionAPI():
 
         face_vector = torch.cat(vectors, axis=0)
         current_id = self.registerFace(face_vector, current_id)
+        return current_id
+
+    def batchRegister(self, images, current_id=None):
+        vectors = []
+        for image in images:
+            vectors.append(self.computeVector(image))
+            face_vector = torch.cat(vectors, axis=0)
+            current_id = self.registerFace(face_vector, current_id)
+
         return current_id
 
     def registerFace(self, face_vector, current_id=None):
@@ -65,7 +76,7 @@ class FaceRecognitionAPI():
     def computeVector(self, image):
         return self.model(image)
 
-    def withinThreshold(self, face_vector1, face_vector2, threshold=0.1):
+    def withinThreshold(self, face_vector1, face_vector2, threshold=3000):
         score = torch.mean(TripletLoss.dist(face_vector1, face_vector2))
         print(score)
         return True if score < threshold else False
@@ -77,8 +88,7 @@ class FaceRecognitionAPI():
 
         return True, frame, image
 
-    '''
-    def preprocessFrame(self, frame):
+    def cropAndPreprocessFrame(self, frame):
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = self.face_cascade.detectMultiScale(gray, 1.1, 4)
         
@@ -95,18 +105,21 @@ class FaceRecognitionAPI():
             return True, frame, image
 
         return False, frame, None
-    '''
 
     '''
         I/O Utilities
     '''
-    def loadModelWeights(self, weight_fn):
+    def loadModelWeights(self, weight_fn, key='weight'):
         assert os.path.isfile(weight_fn), "{} is not a file.".format(weight_fn)
-        state = torch.load(weight_fn)
-        weight = state['weight']
-        it = state['iterations']
+        state = torch.load(weight_fn, map_location=torch.device('cpu'))
+        weight = state[key]
+        if 'iterations' in state.keys():
+            it = state['iterations']
+            print("Checkpoint is loaded at {} | Iterations: {}".format(weight_fn, it))
+        else:
+            print("Checkpoint is loaded at {}".format(weight_fn))
+
         self.model.load_state_dict(weight)
-        print("Checkpoint is loaded at {} | Iterations: {}".format(weight_fn, it))
 
     def loadFace(self, face_id):
         face_id = f'{face_id}.pth'

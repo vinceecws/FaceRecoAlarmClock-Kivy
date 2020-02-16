@@ -19,7 +19,7 @@ class CamApp(App):
     def build(self):
         #Directories
         self.face_dir = './faces'
-        self.weight_dir = './Siamese_MobileNetV2/weights/augmented/siamese_mobilenet_v2_pretrained_triplet_negative_hard_with_augmentation_3057.pkl'
+        self.weight_dir = './MobileFaceNet_Pytorch/model/best/068.ckpt'
         self.haar_dir = './Siamese_MobileNetV2/src/utils/haarcascade_frontalface_default.xml'
 
         self.p = None
@@ -49,11 +49,11 @@ class CamApp(App):
     def initializeFaceDetection(self):
         self.facerecognition = FaceRecognitionAPI(self.face_dir, self.weight_dir, self.haar_dir)
         self.capture = cv2.VideoCapture(0)
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 320);
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 240);
+        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 500);
+        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 500);
 
     def detectFace(self, frame):
-        detected, processed_frame, image = self.facerecognition.preprocessFrame(frame)
+        detected, processed_frame, image = self.facerecognition.cropAndPreprocessFrame(frame)
         if detected:
             if self.p:
                 if self.p.is_alive():

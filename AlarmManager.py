@@ -45,6 +45,8 @@ class AlarmManager():
         self.alarms.append(alarm)
         self.sortAlarms()
 
+        return alarm.getIndex()
+
     def editAlarm(self, idx, hour, minute, notation, label):
         hour = int(hour)
         minute = int(minute)
@@ -63,6 +65,8 @@ class AlarmManager():
         self.alarms[idx].setTime(hour, minute)
         self.alarms[idx].setLabel(label)
         self.sortAlarms()
+
+        return alarm.getIndex()
 
     def removeAlarm(self, idx):
         del self.alarms[idx]

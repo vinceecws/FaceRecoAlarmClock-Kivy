@@ -3,13 +3,16 @@ import cv2
 
 class OpticalFlowController():
 
-    def __init__(self, capture, frame_width=320, frame_height=240):
+    def __init__(self, video_ind, frame_width=500, frame_height=500):
+        self.cap = None
+        self.video_ind = video_ind
         self.frame_width = frame_width
         self.frame_height = frame_height
-        self.cap = capture
 
     def start(self):
-        self.cap.open(0)
+        self.cap = cv2.VideoCapture(self.video_ind)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, self.frame_width)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self.frame_height)
 
     def horizontalSpeedLimit(self, flow, limit=6.0):
         return np.max(flow[:,:,0]) > limit
@@ -35,7 +38,8 @@ class OpticalFlowController():
         return frame, nxt, False
 
     def release(self):
-        self.cap.release()
+        if self.cap is not None:
+            self.cap.release()
 
     def flipFrame(self, frame):
         return cv2.flip(frame, 1)

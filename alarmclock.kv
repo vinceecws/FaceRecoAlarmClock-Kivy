@@ -18,8 +18,11 @@
 
 <RegisterWindow>:
     stream: stream
-    countdown: countdown
     slowdown: slowdown
+    progress_bar: progress_bar
+    RegisterProgressBar:
+        id: progress_bar
+        pos: (0, 320)
     BoxLayout:
         size_hint: 1, 0.95
         orientation: "vertical"
@@ -27,28 +30,40 @@
         FloatLayout:
             size_hint: 1, 1
             Image:
+                size_hint: 1.0, 1.0
                 id: stream
-            RegisterCountdownLabel:
-                id: countdown
-                font_size: 50
-                bold: True
-                size_hint: 0.2, 0.2
-                pos_hint: {'top': 0.8, 'right': 0.4}
+                allow_stretch: True
+                pos_hint: {'y': 0.005}
             SlowDownLabel:
                 id: slowdown
                 text: 'Slow Down'
                 opacity: 0.0
                 font_size: 50
                 bold: True
+                color: (0.0, 0.0, 0.0, 1.0)
                 size_hint: 0.2, 0.2
-                pos_hint: {'top': 0.2, 'right': 0.4}
+                pos_hint: {'x': 0.4, 'y': 0.8}
         Button:
             size_hint: 0.2, 0.1
+            pos_hint: {'right': 0.6}
             text: 'Start Registration'
             font_size: 28
             on_press:
                 self.parent.parent.startRegistration()
                 self.disabled = True
+
+<RegisterProgressBar>
+    canvas:
+        BorderImage:
+            border: (12, 12, 12, 12)
+            pos: self.x, self.center_y - 12
+            size: self.width, 24
+            source: './graphics/white.jpg'
+        BorderImage:
+            border: [int(min(self.width * (self.value / float(self.max)) if self.max else 0, 12))] * 4
+            pos: self.x, self.center_y - 12
+            size: self.width * (self.value / float(self.max)) if self.max else 0, 24
+            source: './graphics/grey.png'
 
 <AlarmWindow>:
     alarmlabel: alarmlabel
@@ -60,10 +75,11 @@
         spacing: 5
         Image:
             id: stream
+            allow_stretch: True
         AlarmWindowLabel:
             id: alarmlabel
             font_size: 50
-            text: self.parent.parent.time
+            text: self.parent.parent.time + '\n' + self.parent.parent.label
 
 <PostAlarmWindow>:
     BoxLayout:
