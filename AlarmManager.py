@@ -66,7 +66,7 @@ class AlarmManager():
         self.alarms[idx].setLabel(label)
         self.sortAlarms()
 
-        return alarm.getIndex()
+        return idx
 
     def removeAlarm(self, idx):
         del self.alarms[idx]

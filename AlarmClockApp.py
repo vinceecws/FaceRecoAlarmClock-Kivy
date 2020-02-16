@@ -29,8 +29,8 @@ from datetime import datetime, timedelta
 import cv2
 
 video_ind = 1
-frame_width = 300
-frame_height = 300
+frame_width = 350
+frame_height = 350
 face_dir = './faces'
 weight_dir = './MobileFaceNet_Pytorch/model/best/068.ckpt'
 haar_dir = './Siamese_MobileNetV2/src/utils/haarcascade_frontalface_default.xml'
@@ -250,34 +250,25 @@ class AlarmList(RecycleView): #Controller
         super(AlarmList, self).__init__(**kwargs)
         global manager
         self.manager = manager
-        self.syncData()
+        Clock.schedule_interval(self.reload, 0.2)
+
+    def reload(self, dt):
+        self.data = [self.getAlarmDict(idx) for idx in range(len(self.manager))]
 
     def getAlarmDict(self, idx):
         alarm = self.manager.getAlarm(idx)
         time, notation = alarm.get12()
         label = alarm.label
         active = alarm.isActive()
-        return {'time': time, 'notation': notation, 'label': label, 'active': active}
+        return {'index': idx, 'time': time, 'notation': notation, 'label': label, 'active': active}
 
     def editAlarm(self, index, hour, minute, notation, label):
         manager.editAlarm(index, hour, minute, notation, label)
         manager.saveAlarms(alarms_dir)
-        data = self.getAlarmDict(index)
-        view = self.view_adapter.get_view(index, data, SelectableAlarm)
-        view.time = '[size=86]{}[/size][size=38]{}[/size]'.format(data['time'], data['notation'])
-        view.label = data['label']
-        view.active = data['active']
-        self.syncData()
 
     def addAlarm(self, hour, minute, notation, label):
         index = manager.addAlarm(hour, minute, notation, label)
         manager.saveAlarms(alarms_dir)
-        #self.syncData()
-        data = self.getAlarmDict(index)
-        view = self.view_adapter.create_view(index, data, SelectableAlarm)
-
-    def syncData(self):
-        self.data = [self.getAlarmDict(i) for i in range(len(self.manager))]
 
 class AlarmLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):  #View
     pass
@@ -287,19 +278,14 @@ alarm_list = AlarmList()
 class SelectableAlarm(RecycleDataViewBehavior, BoxLayout):
     global sm
     screenmanager = sm
-    index = None
+    index = NumericProperty()
+    time = StringProperty()
+    notation = StringProperty()
+    label = StringProperty()
+    active = BooleanProperty()
 
     def __init__(self, **kwargs):
         super(SelectableAlarm, self).__init__(**kwargs)
-
-    def refresh_view_attrs(self, rv, index, data):
-        """ Catch and handle the view changes """
-        self.index = index
-        self.time = '[size=86]{}[/size][size=38]{}[/size]'.format(data['time'], data['notation'])
-        self.label = data['label']
-        self.active = data['active']
-        
-        return super(SelectableAlarm, self).refresh_view_attrs(rv, index, data)
 
     def switchAlarm(self, active):
         if active:
