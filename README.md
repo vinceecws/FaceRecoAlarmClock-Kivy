@@ -10,6 +10,7 @@ If your daily morning routine involves looking at yourself in front of a mirror 
 > 
 > *Disclaimer: The above is completely fictional, albeit makes much sense, am-i-rite?* 🤷🏻
 
+## MorningFace
 This awkwardly named FaceRecoAlarmClock that we eventually renamed to MorningFace helps people improve their "wake-up faces" by embarking on a gradual process of consistent self-portraiting upon waking up. And what better way to do that than to integrate it into an alarm clock?
 
 ### MorningFace improves your lifestyle
