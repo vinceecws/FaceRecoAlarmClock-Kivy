@@ -17,4 +17,4 @@ This awkwardly named FaceRecoAlarmClock that we eventually renamed to MorningFac
 The alarm clock in MorningFace works just like any other, with a catch: no turning off until you stand in front of it and pose for a hearty bedface portrait!
 
 ### Minimal set-up
-Just clone the repository, and run the app. The ML-integrated smart alarm clock will take care of the rest. Pretty self-explanatory right? Now go see your Morning Face get better and better!
+Just clone the repository, and run the app from terminal/cmd by doing `python AlarmClockApp.py`. The ML-integrated smart alarm clock will take care of the rest. Pretty self-explanatory right? Now go see your Morning Face get better and better!
